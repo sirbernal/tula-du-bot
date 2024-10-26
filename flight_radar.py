@@ -1,9 +1,10 @@
 from discord.ext import commands, tasks
-from datetime import datetime
+from datetime import datetime, time
 import pytz
 from amadeus import Client, ResponseError
 import os
 import discord
+import urllib.parse
 
 class FlightCog(commands.Cog):
     def __init__(self, bot):
@@ -36,11 +37,24 @@ class FlightCog(commands.Cog):
                 departure = offer['itineraries'][0]['segments'][0]['departure']['at']
                 arrival = offer['itineraries'][0]['segments'][-1]['arrival']['at']
                 
+                segments = [
+                    {
+                        'departure': segment['departure']['at'],
+                        'arrival': segment['arrival']['at'],
+                        'departure_airport': segment['departure']['iataCode'],
+                        'arrival_airport': segment['arrival']['iataCode'],
+                        'carrier': segment['carrierCode']
+                    }
+                    for segment in offer['itineraries'][0]['segments']
+                ]
+                
                 flights.append({
                     'price': price,
                     'departure': departure,
                     'arrival': arrival,
-                    'duration': offer['itineraries'][0]['duration']
+                    'duration': offer['itineraries'][0]['duration'],
+                    'carriers': [segment['carrierCode'] for segment in offer['itineraries'][0]['segments']],
+                    'segments': segments
                 })
             
             flights.sort(key=lambda x: x['price'])
@@ -50,7 +64,7 @@ class FlightCog(commands.Cog):
             print(f"Error al buscar vuelos: {error}")
             return None
 
-    @tasks.loop(time=datetime.time(hour=13, minute=0, tzinfo=pytz.timezone('America/Santiago')))
+    @tasks.loop(time=time(hour=13, minute=0, tzinfo=pytz.timezone('America/Santiago')))
     async def check_flights(self):
         channel = discord.utils.get(self.bot.get_all_channels(), name=os.environ["CHANNEL_NAME"])
         if not channel:
@@ -71,15 +85,28 @@ class FlightCog(commands.Cog):
         for i, flight in enumerate(flights, 1):
             departure_time = datetime.fromisoformat(flight['departure'].replace('Z', '+00:00'))
             arrival_time = datetime.fromisoformat(flight['arrival'].replace('Z', '+00:00'))
-            
+
+            # Crear la ruta mostrando cada segmento
+            route = ""
+            for segment in flight['segments']:
+                seg_departure_time = datetime.fromisoformat(segment['departure'].replace('Z', '+00:00'))
+                seg_arrival_time = datetime.fromisoformat(segment['arrival'].replace('Z', '+00:00'))
+                route += f"{segment['departure_airport']} ({seg_departure_time.strftime('%H:%M')}) ➔ {segment['arrival_airport']} ({seg_arrival_time.strftime('%H:%M')})\n"
+
+            # Crear una lista de aerolíneas
+            airlines = ', '.join(flight['carriers'])
+
             embed.add_field(
                 name=f"#{i} - ${flight['price']:,.0f} USD",
                 value=f"🛫 Salida: {departure_time.strftime('%Y-%m-%d %H:%M')}\n"
                       f"🛬 Llegada: {arrival_time.strftime('%Y-%m-%d %H:%M')}\n"
-                      f"⏱️ Duración: {flight['duration']}",
+                      f"✈️ Aerolíneas: {airlines}\n"
+                      f"⏱️ Duración: {flight['duration']}\n"
+                      f"🛣️ Ruta:\n{route}",
                 inline=False
             )
 
+        embed.set_footer(text="Los precios pueden variar. Haz clic en 'Ver en Google Flights' para verificar la disponibilidad actual.")
         await channel.send(embed=embed)
 
     @check_flights.before_loop
