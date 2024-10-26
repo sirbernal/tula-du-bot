@@ -1,5 +1,5 @@
 from discord.ext import commands, tasks
-from datetime import datetime
+from datetime import datetime, time
 import pytz
 from amadeus import Client, ResponseError
 import os
@@ -50,7 +50,7 @@ class FlightCog(commands.Cog):
             print(f"Error al buscar vuelos: {error}")
             return None
 
-    @tasks.loop(time=datetime.time(hour=13, minute=0, tzinfo=pytz.timezone('America/Santiago')))
+    @tasks.loop(time=time(hour=13, minute=0, tzinfo=pytz.timezone('America/Santiago')))
     async def check_flights(self):
         channel = discord.utils.get(self.bot.get_all_channels(), name=os.environ["CHANNEL_NAME"])
         if not channel:

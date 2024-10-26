@@ -3,11 +3,13 @@ from discord.ext import commands
 import youtube_dl
 import os
 import random
+from dotenv import load_dotenv
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True  # Necesario para acceder a los miembros del canal
 bot = commands.Bot(command_prefix='!', intents=intents)
+load_dotenv()
 
 GAMES = {
     1: ['TFT'],
