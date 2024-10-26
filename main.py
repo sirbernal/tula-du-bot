@@ -20,14 +20,18 @@ GIF_POOL = {
     'TFT': 'https://media.giphy.com/media/l0HlQ7LRal2QRfiA4/giphy.gif',
     'Fortnite': 'https://media.giphy.com/media/3o6MbkD4r9pqupzC/giphy.gif',
     'LoL': 'https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif',
-    'Valorant': 'https://media.giphy.com/media/l0HlQ7LRal2QRfiA4/giphy.gif'  # Añade más GIFs según necesites
+    'Valorant': 'https://media.giphy.com/media/l0HlQ7LRal2QRfiA4/giphy.gif'
 }
 
 PLAYER_LIST = ['Player1_ID', 'Player2_ID', 'Player3_ID', 'Player4_ID', 'Player5_ID']  # Reemplaza con los IDs de los jugadores
 
+async def load_extensions():
+    await bot.load_extension('flight_cog')
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
+    await load_extensions()
 
 @bot.command()
 async def tplay(ctx, url):
