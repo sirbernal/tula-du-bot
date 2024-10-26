@@ -4,6 +4,7 @@ import pytz
 from amadeus import Client, ResponseError
 import os
 import discord
+import urllib.parse
 
 class FlightCog(commands.Cog):
     def __init__(self, bot):
@@ -16,6 +17,18 @@ class FlightCog(commands.Cog):
 
     def cog_unload(self):
         self.check_flights.cancel()
+
+    def create_google_flights_link(self, departure_date, from_code="SCL", to_code="NRT"):
+        """Crea un link a Google Flights con los parámetros del vuelo"""
+        base_url = "https://www.google.com/travel/flights"
+        params = {
+            "hl": "es",  # idioma español
+            "curr": "USD",  # moneda en USD
+            "tfs": "1",  # búsqueda de vuelos
+            "q": f"flights from {from_code} to {to_code}",
+            "d": departure_date.strftime("%Y-%m-%d")  # fecha en formato YYYY-MM-DD
+        }
+        return f"{base_url}?{urllib.parse.urlencode(params)}"
 
     async def get_cheap_flights(self):
         try:
@@ -40,7 +53,8 @@ class FlightCog(commands.Cog):
                     'price': price,
                     'departure': departure,
                     'arrival': arrival,
-                    'duration': offer['itineraries'][0]['duration']
+                    'duration': offer['itineraries'][0]['duration'],
+                    'carriers': [segment['carrierCode'] for segment in offer['itineraries'][0]['segments']]
                 })
             
             flights.sort(key=lambda x: x['price'])
@@ -72,14 +86,23 @@ class FlightCog(commands.Cog):
             departure_time = datetime.fromisoformat(flight['departure'].replace('Z', '+00:00'))
             arrival_time = datetime.fromisoformat(flight['arrival'].replace('Z', '+00:00'))
             
+            # Crear el link a Google Flights
+            flight_link = self.create_google_flights_link(departure_time)
+            
+            # Crear una lista de aerolíneas
+            airlines = ', '.join(flight['carriers'])
+            
             embed.add_field(
                 name=f"#{i} - ${flight['price']:,.0f} USD",
                 value=f"🛫 Salida: {departure_time.strftime('%Y-%m-%d %H:%M')}\n"
                       f"🛬 Llegada: {arrival_time.strftime('%Y-%m-%d %H:%M')}\n"
-                      f"⏱️ Duración: {flight['duration']}",
+                      f"✈️ Aerolíneas: {airlines}\n"
+                      f"⏱️ Duración: {flight['duration']}\n"
+                      f"🔍 [Ver en Google Flights]({flight_link})",
                 inline=False
             )
 
+        embed.set_footer(text="Los precios pueden variar. Haz clic en 'Ver en Google Flights' para verificar la disponibilidad actual.")
         await channel.send(embed=embed)
 
     @check_flights.before_loop
