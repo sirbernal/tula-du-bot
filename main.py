@@ -26,7 +26,7 @@ GIF_POOL = {
 PLAYER_LIST = ['Player1_ID', 'Player2_ID', 'Player3_ID', 'Player4_ID', 'Player5_ID']  # Reemplaza con los IDs de los jugadores
 
 async def load_extensions():
-    await bot.load_extension('flight_cog')
+    await bot.load_extension('flight_radar')
 
 @bot.event
 async def on_ready():
