@@ -86,7 +86,7 @@ class FlightCog(commands.Cog):
     async def before_check_flights(self):
         await self.bot.wait_until_ready()
 
-    @bot.command()
+    @commands.command()
     async def check_flights_now(self, ctx):
         """Comando manual para verificar vuelos inmediatamente"""
         await self.check_flights()
