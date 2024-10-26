@@ -18,21 +18,6 @@ class FlightCog(commands.Cog):
     def cog_unload(self):
         self.check_flights.cancel()
 
-    def create_google_flights_link(self, from_code, to_code, departure_date, return_date=None):
-        """Crea un enlace optimizado a Google Flights con los parámetros del vuelo específico."""
-        base_url = "https://www.google.com/flights"
-        departure_str = f"{departure_date.strftime('%Y-%m-%d')}"
-
-        # Agrega la fecha de retorno si está disponible
-        if return_date:
-            return_str = f"{return_date.strftime('%Y-%m-%d')}"
-        else:
-            return_str = ""
-
-        # El formato de URL específico para Google Flights
-        return f"{base_url}?hl=es&gl=us&curr=USD#flt={from_code}.{to_code}.{departure_str};c:USD;e:1;sd:1;t:f{':' + return_str if return_str else ''}"
-
-
     async def get_cheap_flights(self):
         try:
             chile_tz = pytz.timezone('America/Santiago')
@@ -52,9 +37,14 @@ class FlightCog(commands.Cog):
                 departure = offer['itineraries'][0]['segments'][0]['departure']['at']
                 arrival = offer['itineraries'][0]['segments'][-1]['arrival']['at']
                 
-                # Obtener detalles de los vuelos
-                flight_numbers = [
-                    f"{segment['carrierCode']}{segment['number']}"
+                segments = [
+                    {
+                        'departure': segment['departure']['at'],
+                        'arrival': segment['arrival']['at'],
+                        'departure_airport': segment['departure']['iataCode'],
+                        'arrival_airport': segment['arrival']['iataCode'],
+                        'carrier': segment['carrierCode']
+                    }
                     for segment in offer['itineraries'][0]['segments']
                 ]
                 
@@ -64,7 +54,7 @@ class FlightCog(commands.Cog):
                     'arrival': arrival,
                     'duration': offer['itineraries'][0]['duration'],
                     'carriers': [segment['carrierCode'] for segment in offer['itineraries'][0]['segments']],
-                    'flight_numbers': flight_numbers
+                    'segments': segments
                 })
             
             flights.sort(key=lambda x: x['price'])
@@ -95,26 +85,24 @@ class FlightCog(commands.Cog):
         for i, flight in enumerate(flights, 1):
             departure_time = datetime.fromisoformat(flight['departure'].replace('Z', '+00:00'))
             arrival_time = datetime.fromisoformat(flight['arrival'].replace('Z', '+00:00'))
-            
-            # Crear el link a Google Flights específico
-            flight_link = self.create_google_flights_link(
-                from_code=os.environ["SANTIAGO_IATA"],
-                to_code=os.environ["TOKYO_IATA"],
-                departure_date=departure_time
-            )
-            
-            # Crear una lista de aerolíneas y códigos de vuelo
+
+            # Crear la ruta mostrando cada segmento
+            route = ""
+            for segment in flight['segments']:
+                seg_departure_time = datetime.fromisoformat(segment['departure'].replace('Z', '+00:00'))
+                seg_arrival_time = datetime.fromisoformat(segment['arrival'].replace('Z', '+00:00'))
+                route += f"{segment['departure_airport']} ({seg_departure_time.strftime('%H:%M')}) ➔ {segment['arrival_airport']} ({seg_arrival_time.strftime('%H:%M')})\n"
+
+            # Crear una lista de aerolíneas
             airlines = ', '.join(flight['carriers'])
-            flight_numbers = ', '.join(flight['flight_numbers'])
-            
+
             embed.add_field(
                 name=f"#{i} - ${flight['price']:,.0f} USD",
                 value=f"🛫 Salida: {departure_time.strftime('%Y-%m-%d %H:%M')}\n"
                       f"🛬 Llegada: {arrival_time.strftime('%Y-%m-%d %H:%M')}\n"
                       f"✈️ Aerolíneas: {airlines}\n"
-                      f"🔢 Código de vuelo: {flight_numbers}\n"
                       f"⏱️ Duración: {flight['duration']}\n"
-                      f"🔍 [Ver en Google Flights]({flight_link})",
+                      f"🛣️ Ruta:\n{route}",
                 inline=False
             )
 
