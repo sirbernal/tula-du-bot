@@ -49,12 +49,19 @@ class FlightCog(commands.Cog):
                 departure = offer['itineraries'][0]['segments'][0]['departure']['at']
                 arrival = offer['itineraries'][0]['segments'][-1]['arrival']['at']
                 
+                # Obtener detalles de los vuelos
+                flight_numbers = [
+                    f"{segment['carrierCode']}{segment['number']}"
+                    for segment in offer['itineraries'][0]['segments']
+                ]
+                
                 flights.append({
                     'price': price,
                     'departure': departure,
                     'arrival': arrival,
                     'duration': offer['itineraries'][0]['duration'],
-                    'carriers': [segment['carrierCode'] for segment in offer['itineraries'][0]['segments']]
+                    'carriers': [segment['carrierCode'] for segment in offer['itineraries'][0]['segments']],
+                    'flight_numbers': flight_numbers
                 })
             
             flights.sort(key=lambda x: x['price'])
@@ -89,14 +96,16 @@ class FlightCog(commands.Cog):
             # Crear el link a Google Flights
             flight_link = self.create_google_flights_link(departure_time)
             
-            # Crear una lista de aerolíneas
+            # Crear una lista de aerolíneas y códigos de vuelo
             airlines = ', '.join(flight['carriers'])
+            flight_numbers = ', '.join(flight['flight_numbers'])
             
             embed.add_field(
                 name=f"#{i} - ${flight['price']:,.0f} USD",
                 value=f"🛫 Salida: {departure_time.strftime('%Y-%m-%d %H:%M')}\n"
                       f"🛬 Llegada: {arrival_time.strftime('%Y-%m-%d %H:%M')}\n"
                       f"✈️ Aerolíneas: {airlines}\n"
+                      f"🔢 Código de vuelo: {flight_numbers}\n"
                       f"⏱️ Duración: {flight['duration']}\n"
                       f"🔍 [Ver en Google Flights]({flight_link})",
                 inline=False
