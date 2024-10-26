@@ -18,17 +18,20 @@ class FlightCog(commands.Cog):
     def cog_unload(self):
         self.check_flights.cancel()
 
-    def create_google_flights_link(self, departure_date, from_code="SCL", to_code="NRT"):
-        """Crea un link a Google Flights con los parámetros del vuelo"""
-        base_url = "https://www.google.com/travel/flights"
-        params = {
-            "hl": "es",  # idioma español
-            "curr": "USD",  # moneda en USD
-            "tfs": "1",  # búsqueda de vuelos
-            "q": f"flights from {from_code} to {to_code}",
-            "d": departure_date.strftime("%Y-%m-%d")  # fecha en formato YYYY-MM-DD
-        }
-        return f"{base_url}?{urllib.parse.urlencode(params)}"
+    def create_google_flights_link(self, from_code, to_code, departure_date, return_date=None):
+        """Crea un enlace optimizado a Google Flights con los parámetros del vuelo específico."""
+        base_url = "https://www.google.com/flights"
+        departure_str = f"{departure_date.strftime('%Y-%m-%d')}"
+
+        # Agrega la fecha de retorno si está disponible
+        if return_date:
+            return_str = f"{return_date.strftime('%Y-%m-%d')}"
+        else:
+            return_str = ""
+
+        # El formato de URL específico para Google Flights
+        return f"{base_url}?hl=es&gl=us&curr=USD#flt={from_code}.{to_code}.{departure_str};c:USD;e:1;sd:1;t:f{':' + return_str if return_str else ''}"
+
 
     async def get_cheap_flights(self):
         try:
@@ -93,8 +96,12 @@ class FlightCog(commands.Cog):
             departure_time = datetime.fromisoformat(flight['departure'].replace('Z', '+00:00'))
             arrival_time = datetime.fromisoformat(flight['arrival'].replace('Z', '+00:00'))
             
-            # Crear el link a Google Flights
-            flight_link = self.create_google_flights_link(departure_time)
+            # Crear el link a Google Flights específico
+            flight_link = self.create_google_flights_link(
+                from_code=os.environ["SANTIAGO_IATA"],
+                to_code=os.environ["TOKYO_IATA"],
+                departure_date=departure_time
+            )
             
             # Crear una lista de aerolíneas y códigos de vuelo
             airlines = ', '.join(flight['carriers'])
